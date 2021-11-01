@@ -13,30 +13,43 @@ let britishToAmericanTitles = {};
     }
 
     for (let americanTitle in americanToBritishTitles) {
-        britishToAmericanTitles[americanTitle] = americanToBritishTitles[americanTitle];
+        britishToAmericanTitles[americanToBritishTitles[americanTitle]] = americanTitle;
     }
 })();
 
 
+
+
 class Translator {
 
-    // Tested for words. Not numbers.
-    toBritish(text) {
-        
-        let words = text.split(" ");
-        words = this.toBritishTimeFormat(words);
-        words = this.toBritishTitles(words);
-        words = this.toBritishSpellings(words);
-        words = this.toBritishOnly(words);
-
-        return words.join(" ");
-
+    // Tested - ok
+    toBritish(text, highlight) {
+        return this.convertText(text, 0, highlight);
     }
 
-    toBritishTimeFormat(words){
+
+    toAmerican(text, highlight) {
+        return this.convertText(text, 1, highlight);
+    }
+    
+
+    convertText(text, mode, highlight) {
+        let words = text.split(" ");
+        words = this.convertTimeFormat(words, mode, highlight);
+        words = this.convertTitles(words, mode, highlight);
+        words = this.convertSpellings(words, mode, highlight);
+        words = this.convertAllWords(words, mode, highlight);
+        return words.join(" ");
+    }
+
+    convertTimeFormat(words, mode, highlight){
+
+        let characterToLook = (mode === 0)?':':'.';
+        let characterWeWant = (mode === 0)?'.':':';
+        
         for(let i = 0 ; i < words.length; i ++){
-            if(words[i].includes(":")){
-                let indexOfSign = words[i].indexOf(':');
+            if(words[i].includes(characterToLook)){
+                let indexOfSign = words[i].indexOf(characterToLook);
                 let checkAhead = false;
                 let checkBehind = false;
 
@@ -49,7 +62,11 @@ class Translator {
                 }
 
                 if(checkBehind && checkBehind){
-                    words[i] = words[i].replace(':', '.');
+                    words[i] = words[i].replace(characterToLook, characterWeWant);
+
+                    if(highlight){
+                        words[i] = `<span class="highlight">${words[i]}</span>`
+                    }
                 }
             }
         }
@@ -57,18 +74,18 @@ class Translator {
     }
 
     
-    toBritishOnly(words){
-
+    convertAllWords(words, mode, highlight){
+        
         
         // Three word check
         for(let i = 0 ; i < words.length - 2; i ++){
             let word = words[i] + " " + words[i + 1]+ " " + words[i + 2];
 
-            let result = this.toBritishOnlyWord(word, words);
+            let result = this.convertWord(word, words, mode, highlight);
 
             if(result){
                 
-                return this.toBritishOnly(result);
+                return this.convertAllWords(result, mode, highlight);
             }
         }
 
@@ -76,11 +93,10 @@ class Translator {
         for(let i = 0 ; i < words.length - 1; i ++){
             let word = words[i] + " " + words[i + 1];
 
-            let result = this.toBritishOnlyWord(word, words);
+            let result = this.convertWord(word, words, mode, highlight);
 
-            if (result) {
-                
-                return this.toBritishOnly(result);
+            if (result) {                
+                return this.convertAllWords(result, mode, highlight);
             }
         }
 
@@ -89,11 +105,11 @@ class Translator {
         for(let i = 0 ; i < words.length; i ++){
             let word = words[i];
 
-            let result = this.toBritishOnlyWord(word, words);
+            let result = this.convertWord(word, words, mode, highlight);
 
             if (result) {
                 
-                return this.toBritishOnly(result);
+                return this.convertAllWords(result, mode, highlight);
             }
         }
 
@@ -102,8 +118,10 @@ class Translator {
 
 
     // Tested - OK
-    toBritishOnlyWord(word, words){
+    convertWord(word, words, mode, highlight){
+  
 
+        let dictionary = (mode === 0)?americanOnly:britishOnly;
         
         let loweredWord = word.toLowerCase();
         let lastCharacter = word.charAt(loweredWord.length - 1);
@@ -117,9 +135,9 @@ class Translator {
         }
 
         let replacement = null;
-        if (americanOnly[loweredWord]) {
+        if (dictionary[loweredWord]) {
             
-            replacement = americanOnly[loweredWord];
+            replacement = dictionary[loweredWord];
         }
 
 
@@ -127,24 +145,33 @@ class Translator {
             replacement += lastCharacter;
         }
 
+
+        if(highlight && replacement){
+            replacement = `<span class="highlight">${replacement}</span>`;
+        }
+
         let outcome = null;
         if (replacement) {
             outcome = words.join(" ").replace(word, replacement);
-            words = outcome.split(" ");
-
+            words = outcome.split(" ");            
             return words;
         }
         return null;
     }
 
     // Tested - ok
-    toBritishTitles(words){
+    convertTitles(words, mode, highlight){
+        let dictionary = (mode === 0)?americanToBritishTitles:britishToAmericanTitles;        
         for(let i = 0 ; i < words.length; i ++){
             let word = words[i].toLowerCase();
 
-            if(americanToBritishTitles[word]){
-                word = americanToBritishTitles[word];
+            if(dictionary[word]){
+                word = dictionary[word];
                 words[i] = word.charAt(0).toUpperCase() + word.slice(1);
+
+                if(highlight){
+                    words[i] = `<span class="highlight">${words[i]}</span>`;
+                }
             }
 
             
@@ -155,7 +182,10 @@ class Translator {
 
 
     // Tested - ok
-    toBritishSpellings(words){
+    // mode: 0 for American to British, 1 for British to american.
+    convertSpellings(words, mode, highlight){
+
+        let dictionary = mode===0?americanToBritishSpelling:britishToAmericanSpelling;
         for(let i = 0 ; i < words.length; i ++){
             let word = words[i];
 
@@ -175,29 +205,27 @@ class Translator {
                 word = word.slice(0, -1);                
             }
 
-            if(americanToBritishSpelling[word]){
-                word = americanToBritishSpelling[word];
+            if(dictionary[word]){
+                word = dictionary[word];
             }
 
             if(punctuationPresent){
                 word+=lastCharacter;
             }
 
-            if(isUppercase){
-                word = word.charAt(0).toUpperCase() + word.slice(1);
-            }
+            
 
             if(words[i].toLowerCase() !== word)
-            words[i] = word;
+            {
+                if (isUppercase) {
+                    word = word.charAt(0).toUpperCase() + word.slice(1);
+                }
+                words[i] = (highlight)?`<span class="highlight">${word}</span>`:word;
+            }
             
         }        
 
         return words;
-    }
-
-
-    toAmerican(text) {
-        
     }
 }
 
